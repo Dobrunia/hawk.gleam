@@ -3,6 +3,7 @@ import gleam/http
 import gleam/http/request
 import gleam/httpc
 import gleam/option.{type Option}
+import utils/logger
 
 pub type Transport {
   Transport(url: String)
@@ -34,8 +35,14 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
         Error(_) -> Error("HTTP request failed")
 
         Ok(response) -> {
-          // здесь проверить response.status
-          todo
+          case response.status {
+            200 -> Ok(Nil)
+
+            _ -> {
+              logger.log("Hawk returned unsuccessful HTTP status", logger.Error)
+              Error("Hawk returned unsuccessful HTTP status")
+            }
+          }
         }
       }
     }
