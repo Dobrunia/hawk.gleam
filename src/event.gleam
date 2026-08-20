@@ -1,13 +1,23 @@
+import gleam/option.{type Option}
+
 pub type EventPayload {
-  EventPayload(data: String)
+  EventPayload(
+    title: String,
+    event_type: Option(String),
+    context: Option(String),
+    user: Option(String),
+  )
 }
 
 pub type Event {
   Event(catcher_type: String, integration_token: String, payload: EventPayload)
 }
-// pub fn new_event(integration_token: String, payload: EventPayload) -> Event {
-//     case integration_token {
-//         "" -> //как тут выдать ошибку?
-//     }
-//     Event(default_catcher_type, integration_token, payload)
-// }
+
+const default_catcher_type = "errors/default"
+
+pub fn create_new_event(
+  integration_token: String,
+  payload: EventPayload,
+) -> Event {
+  Event(default_catcher_type, integration_token, payload)
+}
