@@ -3,11 +3,9 @@ import gleam/otp/actor
 import transport
 import typeid
 
-pub type Message {
-  SetUser(String)
-  SetContext(String)
-  //   SendEvent(Event)
-}
+pub type Message
+
+//   SendEvent(Event)
 
 type State {
   State(
@@ -18,11 +16,9 @@ type State {
   )
 }
 
-pub fn start_catcher_actor(
-  integration_token: String,
-  user: String,
-) -> Result(Nil, String) {
-  let state = init_state(integration_token, user)
+pub fn start_catcher_actor(integration_token: String) -> Result(Nil, String) {
+  let state =
+    State(integration_token, generate_user(), option.None, transport.new(""))
 
   case
     actor.new(state)
@@ -39,29 +35,11 @@ fn generate_user() -> String {
   typeid.to_string(id)
 }
 
-fn resolve_user(user: String) -> String {
-  case user {
-    "" -> generate_user()
-    _ -> user
-  }
-}
-
-fn init_state(integration_token: String, user: String) -> State {
-  State(integration_token, resolve_user(user), option.None, transport.new(""))
-}
-
 fn handle_message(
   state: State,
   message: Message,
 ) -> actor.Next(State, Message) {
   case message {
-    SetUser(user) -> {
-      let state = State(..state, user: resolve_user(user))
-      actor.continue(state)
-    }
-    SetContext(context) -> {
-      let state = State(..state, context: option.Some(context))
-      actor.continue(state)
-    }
+    _ -> actor.continue(state)
   }
 }
