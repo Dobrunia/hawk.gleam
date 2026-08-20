@@ -7,10 +7,11 @@ gleam add hawk_gleam
 ```
 
 ```gleam
-import hawk_gleam
+import hawk_gleam as hawk
 
 pub fn main() -> Nil {
-  let assert Ok(_) = hawk_gleam.init("YOUR_INTEGRATION_TOKEN")
+  let assert Ok(_) = hawk.init("YOUR_INTEGRATION_TOKEN")
+  let assert Ok(_) = hawk.send("Hello from Hawk")
   Nil
 }
 ```

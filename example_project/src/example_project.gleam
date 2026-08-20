@@ -1,7 +1,7 @@
 import dot_env
 import dot_env/env
 import gleam/io
-import hawk_gleam
+import hawk_gleam as hawk
 
 pub fn main() -> Nil {
   dot_env.load_default()
@@ -10,10 +10,10 @@ pub fn main() -> Nil {
     Error(_) | Ok("") ->
       io.println("Copy .env.example to .env and set HAWK_INTEGRATION_TOKEN")
 
-    Ok(token) ->
-      case hawk_gleam.init(token) {
-        Ok(_) -> io.println("Hawk catcher started")
-        Error(reason) -> io.println(reason)
-      }
+    Ok(token) -> {
+      let assert Ok(_) = hawk.init(token)
+      let assert Ok(_) = hawk.send("Hawk gleam example")
+      Nil
+    }
   }
 }
