@@ -5,7 +5,7 @@ import gleam/otp/actor
 import transport
 import typeid
 
-pub type Message {
+type Message {
   SendEvent(
     payload: event.EventPayload,
     reply_with: Subject(Result(Nil, String)),
@@ -21,7 +21,7 @@ type State {
   )
 }
 
-pub const default_catcher_type = "errors/default"
+const default_catcher_type = "errors/default"
 
 pub fn start_catcher_actor(integration_token: String) -> Result(Nil, String) {
   let state =
