@@ -7,9 +7,10 @@ pub type Message {
   SetUser(String)
   //   SetContext(String)
   //   CreateTransport(String)
+  //   SendEvent(Event)
 }
 
-pub type State {
+type State {
   State(
     integration_token: String,
     user: String,
@@ -18,11 +19,15 @@ pub type State {
   )
 }
 
-pub fn start_catcher_actor(integration_token: String, user: String) {
+pub fn start_catcher_actor(
+  integration_token: String,
+  user: String,
+) -> Result(Nil, String) {
   let state = init_state(integration_token, user)
 
   let assert Ok(actor) =
     actor.new(state) |> actor.on_message(handle_message) |> actor.start
+  Ok(Nil)
 }
 
 fn generate_user() -> String {
@@ -41,7 +46,7 @@ fn init_state(integration_token: String, user: String) -> State {
   State(integration_token, resolve_user(user), option.None, transport.new(""))
 }
 
-pub fn handle_message(
+fn handle_message(
   state: State,
   message: Message,
 ) -> actor.Next(State, Message) {
