@@ -5,8 +5,7 @@ import typeid
 
 pub type Message {
   SetUser(String)
-  //   SetContext(String)
-  //   CreateTransport(String)
+  SetContext(String)
   //   SendEvent(Event)
 }
 
@@ -58,6 +57,10 @@ fn handle_message(
   case message {
     SetUser(user) -> {
       let state = State(..state, user: resolve_user(user))
+      actor.continue(state)
+    }
+    SetContext(context) -> {
+      let state = State(..state, context: option.Some(context))
       actor.continue(state)
     }
   }
