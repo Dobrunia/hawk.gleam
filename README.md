@@ -1,27 +1,24 @@
 # hawk_gleam
 
-[![Package Version](https://img.shields.io/hexpm/v/hawk_gleam)](https://hex.pm/packages/hawk_gleam)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hawk-gleam.hexdocs.pm/)
+Hawk.so error catcher for Gleam (Erlang target).
 
 ```sh
-gleam add hawk_gleam@1
+gleam add hawk_gleam
 ```
+
 ```gleam
 import hawk_gleam
 
 pub fn main() -> Nil {
-  // TODO: An example of the project in use
+  let assert Ok(_) = hawk_gleam.init("YOUR_INTEGRATION_TOKEN")
+  Nil
 }
 ```
-
-Further documentation can be found at <https://hawk-gleam.hexdocs.pm/>.
 
 ## Development
 
 ```sh
-gleam run   # Run the project
-
-gleam check
-gleam test  # Run the tests
+gleam test
 gleam format
+gleam check
 ```
