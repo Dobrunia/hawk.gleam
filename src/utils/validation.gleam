@@ -1,4 +1,5 @@
 import gleam/int
+import gleam/option.{type Option}
 import gleam/string
 
 fn validate_length(
@@ -45,10 +46,61 @@ pub fn validate_integration_token(
   )
 }
 
+pub fn validate_catcher_type(catcher_type: String) -> Result(Nil, String) {
+  case catcher_type {
+    "errors/default" -> Ok(Nil)
+    _ -> Error("Catcher type must be 'errors/default'")
+  }
+}
+
+const min_title_length = 1
+
+const max_title_length = 128
+
+pub fn validate_title(title: String) -> Result(Nil, String) {
+  validate_length(title, min_title_length, max_title_length, "Title")
+}
+
+const min_event_type_length = 0
+
+const max_event_type_length = 64
+
+pub fn validate_event_type(event_type: Option(String)) -> Result(Nil, String) {
+  case event_type {
+    option.None -> Ok(Nil)
+
+    option.Some(value) ->
+      validate_length(
+        value,
+        min_event_type_length,
+        max_event_type_length,
+        "Event type",
+      )
+  }
+}
+
+const min_context_length = 0
+
+const max_context_length = 128
+
+pub fn validate_context(context: Option(String)) -> Result(Nil, String) {
+  case context {
+    option.None -> Ok(Nil)
+
+    option.Some(value) ->
+      validate_length(value, min_context_length, max_context_length, "Context")
+  }
+}
+
 const min_user_length = 0
 
 const max_user_length = 64
 
-pub fn validate_user(user: String) -> Result(Nil, String) {
-  validate_length(user, min_user_length, max_user_length, "User")
+pub fn validate_user(user: Option(String)) -> Result(Nil, String) {
+  case user {
+    option.None -> Ok(Nil)
+
+    option.Some(value) ->
+      validate_length(value, min_user_length, max_user_length, "User")
+  }
 }

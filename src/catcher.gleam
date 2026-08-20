@@ -1,11 +1,16 @@
+import event
+import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option}
 import gleam/otp/actor
 import transport
 import typeid
 
-pub type Message
-
-//   SendEvent(Event)
+pub type Message {
+  SendEvent(
+    payload: event.EventPayload,
+    reply_with: Subject(Result(Nil, String)),
+  )
+}
 
 type State {
   State(
@@ -15,6 +20,8 @@ type State {
     transport: transport.Transport,
   )
 }
+
+pub const default_catcher_type = "errors/default"
 
 pub fn start_catcher_actor(integration_token: String) -> Result(Nil, String) {
   let state =
@@ -40,6 +47,24 @@ fn handle_message(
   message: Message,
 ) -> actor.Next(State, Message) {
   case message {
-    _ -> actor.continue(state)
+    SendEvent(payload, reply_with) -> {
+      case
+        event.create_new_and_valid_event(
+          default_catcher_type,
+          state.integration_token,
+          payload,
+        )
+      {
+        Error(error) -> {
+          actor.send(reply_with, Error(error))
+        }
+
+        Ok(event) -> {
+          let result = transport.send(state.transport, event)
+          actor.send(reply_with, result)
+        }
+      }
+      actor.continue(state)
+    }
   }
 }
