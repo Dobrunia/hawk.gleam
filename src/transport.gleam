@@ -10,6 +10,3 @@ pub fn new(url: String) -> Transport {
     _ -> Transport(url)
   }
 }
-// pub fn send(transport: Transport, event: Event) -> Decoder {
-
-// }

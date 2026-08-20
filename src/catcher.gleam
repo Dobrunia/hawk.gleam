@@ -25,9 +25,14 @@ pub fn start_catcher_actor(
 ) -> Result(Nil, String) {
   let state = init_state(integration_token, user)
 
-  let assert Ok(actor) =
-    actor.new(state) |> actor.on_message(handle_message) |> actor.start
-  Ok(Nil)
+  case
+    actor.new(state)
+    |> actor.on_message(handle_message)
+    |> actor.start
+  {
+    Ok(_) -> Ok(Nil)
+    Error(_) -> Error("Failed to start Hawk catcher")
+  }
 }
 
 fn generate_user() -> String {
