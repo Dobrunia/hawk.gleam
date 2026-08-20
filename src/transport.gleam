@@ -6,15 +6,11 @@ pub type Transport {
 
 const default_url = "https://k1.hawk.so/"
 
-pub fn new(url: String) -> Transport {
+pub fn new(_url: String) -> Transport {
     case url {
         "" -> Transport(default_url)
         _ -> Transport(url)
     }
-}
-
-pub fn new() -> Transport {
-    new(default_url)
 }
 
 // pub fn send(transport: Transport, event: Event) -> Decoder {

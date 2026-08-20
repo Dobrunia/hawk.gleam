@@ -12,12 +12,10 @@ pub type Event {
     )
 }
 
-const default_catcher_type = "error/gleam"
-
-pub fn new_event(integration_token: String, payload: EventPayload) -> Event {
-    case integration_token {
-        "" -> //как тут выдать ошибку?
-    }
-    Event(default_catcher_type, integration_token, payload)
-}
+// pub fn new_event(integration_token: String, payload: EventPayload) -> Event {
+//     case integration_token {
+//         "" -> //как тут выдать ошибку?
+//     }
+//     Event(default_catcher_type, integration_token, payload)
+// }
 

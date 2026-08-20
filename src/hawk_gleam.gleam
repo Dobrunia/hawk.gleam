@@ -1,32 +1,32 @@
-import gleam/io
+import typeid
 
-type Catcher {
-  Catcher(
+pub type InitialState {
+  InitialState(
     integration_token: String,
     user: String,
-    context: String,
   )
 }
 
-pub fn init(integration_token: String, user: String, context: String) -> Result(Catcher, String) {
-  case integration_token, user {
-    "", _ -> Result.Error("Integration token is required")
-    _, "" -> generate_user()
+pub fn init(integration_token: String, user: String) -> Result(Nil, String) {
+  case integration_token {
+    "" -> Error("Integration token is required")
+    _ -> {
+      // создать state
+      // запустить actor
+      // вернуть итоговый Result
+    }
   }
-  set_context(context)
-
-  
-  // валидация -> сет токена
-  // валидация -> сет пользователя
-  // сет контекста
-  // создание транспорта
-  // создание лушателя на ошибки, лучше чтобы запускался отправлял событие и выключался.
+  Ok(Nil)
 }
 
-pub fn init(integration_token: String, user: String) -> Nil {
-  init(integration_token, user, "")
+fn generate_user() -> String {
+  let assert Ok(id) = typeid.new("user")
+  typeid.to_string(id)
 }
 
-pub fn init(integration_token: String) -> Nil {
-  init(integration_token, "", "")
+fn create_initial_state(integration_token: String, user: String) -> InitialState {
+  case user {
+    "" -> InitialState(integration_token, generate_user())
+    _ -> InitialState(integration_token, user)
+  }
 }
