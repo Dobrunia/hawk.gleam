@@ -2,7 +2,6 @@ import event.{type Event}
 import gleam/http
 import gleam/http/request
 import gleam/httpc
-import gleam/option.{type Option}
 import utils/logger
 
 pub type Transport {
