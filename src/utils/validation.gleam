@@ -33,7 +33,7 @@ fn validate_length(
 
 const min_integration_token_length = 1
 
-const max_integration_token_length = 128
+const max_integration_token_length = 256
 
 pub fn validate_integration_token(
   integration_token: String,

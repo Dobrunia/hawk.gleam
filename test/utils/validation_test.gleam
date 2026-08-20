@@ -7,10 +7,10 @@ pub fn validate_integration_token_test() {
   let cases = [
     #("", Error("Integration token length must be greater than 1 characters")),
     #("a", Ok(Nil)),
-    #("a" |> string.repeat(128), Ok(Nil)),
+    #("a" |> string.repeat(256), Ok(Nil)),
     #(
-      "a" |> string.repeat(129),
-      Error("Integration token length must be less than 128 characters"),
+      "a" |> string.repeat(257),
+      Error("Integration token length must be less than 256 characters"),
     ),
   ]
 
