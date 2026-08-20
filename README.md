@@ -20,5 +20,8 @@ Further documentation can be found at <https://hawk-gleam.hexdocs.pm/>.
 
 ```sh
 gleam run   # Run the project
+
+gleam check
 gleam test  # Run the tests
+gleam format
 ```

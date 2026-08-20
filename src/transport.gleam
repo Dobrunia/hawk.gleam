@@ -13,6 +13,10 @@ pub fn new(url: String) -> Transport {
     }
 }
 
+pub fn new() -> Transport {
+    new(default_url)
+}
+
 // pub fn send(transport: Transport, event: Event) -> Decoder {
 
 // }
