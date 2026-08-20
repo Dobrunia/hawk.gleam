@@ -13,6 +13,6 @@ pub fn new(url: String, token: String) -> Result(Transport, String) { //либо
     }
 }
 
-pub fn send(transport: Transport, event: Event) -> Decoder {
+// pub fn send(transport: Transport, event: Event) -> Decoder {
 
-}
+// }
