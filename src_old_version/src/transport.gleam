@@ -7,7 +7,7 @@ pub type Transport {
   Transport(url: String)
 }
 
-const default_url = "https://k1.hawk.so/"
+const default_url = "http://127.0.0.1:8787/"
 
 @external(erlang, "transport_ffi", "configure")
 fn configure_ffi(max_connections: Int) -> Result(Nil, Nil)

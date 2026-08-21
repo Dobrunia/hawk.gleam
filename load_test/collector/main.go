@@ -5,8 +5,11 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand/v2"
 	"net/http"
+	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,6 +29,13 @@ type ResponseMessage struct {
 }
 
 const maxErrorCatcherMessageSize = 25000
+
+// Default fake k1 RTT: median in 40–80ms, fat tail p99=200ms.
+const defaultRttP50Ms = 60.0
+const defaultRttP99Ms = 200.0
+const rttZ99 = 2.3263478740408408
+const rttMinMs = 1.0
+const rttMaxMs = 2000.0
 
 type stats struct {
 	Received     int64 `json:"received"`
@@ -84,6 +94,61 @@ func sendAnswerHTTP(w http.ResponseWriter, r ResponseMessage) {
 	_ = json.NewEncoder(w).Encode(r)
 }
 
+type fakeRTT struct {
+	enabled bool
+	mu      float64
+	sigma   float64
+	p50Ms   float64
+	p99Ms   float64
+}
+
+func loadFakeRTT() fakeRTT {
+	if os.Getenv("FAKE_RTT") == "0" {
+		return fakeRTT{}
+	}
+
+	p50 := envFloat("FAKE_RTT_P50_MS", defaultRttP50Ms)
+	p99 := envFloat("FAKE_RTT_P99_MS", defaultRttP99Ms)
+	if p50 <= 0 || p99 <= p50 {
+		p50, p99 = defaultRttP50Ms, defaultRttP99Ms
+	}
+
+	return fakeRTT{
+		enabled: true,
+		mu:      math.Log(p50),
+		sigma:   math.Log(p99/p50) / rttZ99,
+		p50Ms:   p50,
+		p99Ms:   p99,
+	}
+}
+
+func envFloat(key string, fallback float64) float64 {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func (rtt fakeRTT) sleep() {
+	if !rtt.enabled {
+		return
+	}
+
+	ms := math.Exp(rtt.mu + rtt.sigma*rand.NormFloat64())
+	if ms < rttMinMs {
+		ms = rttMinMs
+	}
+	if ms > rttMaxMs {
+		ms = rttMaxMs
+	}
+	time.Sleep(time.Duration(ms * float64(time.Millisecond)))
+}
+
 func sampleLatency(body []byte) int64 {
 	var message CatcherMessage
 	if json.Unmarshal(body, &message) != nil {
@@ -104,6 +169,7 @@ func sampleLatency(body []byte) int64 {
 }
 
 func main() {
+	rtt := loadFakeRTT()
 	var received int64
 	var nbytes int64
 	var window int64
@@ -172,6 +238,7 @@ func main() {
 		}
 
 		response := process(body)
+		rtt.sleep()
 		if response.Code == 200 {
 			if latency := sampleLatency(body); latency > 0 {
 				latencyMu.Lock()
@@ -188,6 +255,10 @@ func main() {
 	})
 
 	addr := "127.0.0.1:8787"
-	log.Printf("collector listening on http://%s/", addr)
+	if rtt.enabled {
+		log.Printf("collector listening on http://%s/ (fake RTT lognormal p50=%.0fms p99=%.0fms)", addr, rtt.p50Ms, rtt.p99Ms)
+	} else {
+		log.Printf("collector listening on http://%s/ (fake RTT off)", addr)
+	}
 	log.Fatal(http.ListenAndServe(addr, mux))
 }

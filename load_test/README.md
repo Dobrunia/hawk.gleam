@@ -14,6 +14,8 @@ go run .
 
 Stdout every second: `received`, `rps`, `bytes`. `POST /` emulates [hawk.collector](https://github.com/codex-team/hawk.collector) error intake (`token`/`catcherType`/`payload`, JSON `{code,error,message}`). JWT, Redis, Mongo, RabbitMQ skipped. `/stats` and `/reset` are load-test only.
 
+Each intake response is held with a lognormal fake RTT (default p50=60ms, p99=200ms) so one blocking HTTP worker behaves like k1, not localhost. Disable with `FAKE_RTT=0`. Override: `FAKE_RTT_P50_MS`, `FAKE_RTT_P99_MS`.
+
 - Snapshot: `GET http://127.0.0.1:8787/stats`
 - Reset counters and latency samples: `POST http://127.0.0.1:8787/reset`
 
@@ -35,7 +37,7 @@ cd load_test/generator_new
 gleam run -- 10000
 ```
 
-Calls `hawk.init(token)`. Sends batches of 50 while keeping in-flight under 80 so the pending cap of 100 does not drop events. Then polls `/stats` until drain or 120s timeout.
+Calls `hawk.init(token)`. Sends batches of 50 while keeping in-flight under 80 so the pending cap of 100 does not drop events. Then polls `/stats` until drain or 15min timeout.
 
 `hawk.send` is enqueue into the dispatcher, not HTTP. Each generator resets the collector, records the initial `received`, and polls `/stats` until `received_delta == enqueued` or the 120s timeout expires.
 

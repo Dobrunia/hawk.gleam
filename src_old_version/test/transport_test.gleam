@@ -1,7 +1,7 @@
 import gleam/list
 import transport
 
-const default_url = "https://k1.hawk.so/"
+const default_url = "http://127.0.0.1:8787/"
 
 pub fn configures_dedicated_http_profile_test() {
   assert transport.configure(8) == Ok(Nil)

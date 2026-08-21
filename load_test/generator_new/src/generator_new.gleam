@@ -14,7 +14,7 @@ const default_count = 10_000
 
 const poll_interval_ms = 100
 
-const drain_timeout_ms = 120_000
+const drain_timeout_ms = 900_000
 
 const batch_size = 50
 
