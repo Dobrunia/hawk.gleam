@@ -35,7 +35,7 @@ cd load_test/generator_new
 gleam run -- 10000
 ```
 
-Calls `hawk.init(token)`. Same enqueue + poll loop; current API has no transport arg, context, or `stats()`.
+Calls `hawk.init(token)`. Sends batches of 50 while keeping in-flight under 80 so the pending cap of 100 does not drop events. Then polls `/stats` until drain or 120s timeout.
 
 `hawk.send` is enqueue into the dispatcher, not HTTP. Each generator resets the collector, records the initial `received`, and polls `/stats` until `received_delta == enqueued` or the 120s timeout expires.
 

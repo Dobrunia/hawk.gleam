@@ -12,11 +12,13 @@ import hawk_gleam as hawk
 
 const default_count = 10_000
 
-const progress_every = 1000
-
 const poll_interval_ms = 100
 
 const drain_timeout_ms = 120_000
+
+const batch_size = 50
+
+const max_in_flight = 80
 
 @external(erlang, "generator_ffi", "now_ms")
 fn now_ms() -> Int
@@ -65,7 +67,16 @@ pub fn main() -> Nil {
   let runtime_started = runtime_ms()
   let wall_started = wall_clock_ms()
   let started = now_ms()
-  let counts = send_loop(0, count, Counts(0, 0))
+  io.println(
+    string.concat([
+      "pacing batches of ",
+      int.to_string(batch_size),
+      " with max in-flight ",
+      int.to_string(max_in_flight),
+    ]),
+  )
+  let assert Ok(counts) =
+    send_paced(0, count, Counts(0, 0), collector_before.received, started)
   let enqueue_elapsed = now_ms() - started
   print_enqueue_report(counts, enqueue_elapsed)
 
@@ -108,8 +119,70 @@ fn event_count() -> Int {
   }
 }
 
-fn send_loop(i: Int, total: Int, counts: Counts) -> Counts {
-  case i >= total {
+fn send_paced(
+  sent: Int,
+  total: Int,
+  counts: Counts,
+  collector_before_received: Int,
+  started: Int,
+) -> Result(Counts, String) {
+  case sent >= total {
+    True -> Ok(counts)
+
+    False -> {
+      case now_ms() - started >= drain_timeout_ms {
+        True -> Error("Timed out while pacing batches")
+        False -> {
+          use collector <- result.try(read_collector_stats())
+          let delivered = collector.received - collector_before_received
+          let in_flight = counts.enqueued - delivered
+          let remaining = total - sent
+          let room = max_in_flight - in_flight
+
+          case room <= 0 {
+            True -> {
+              process.sleep(poll_interval_ms)
+              send_paced(
+                sent,
+                total,
+                counts,
+                collector_before_received,
+                started,
+              )
+            }
+
+            False -> {
+              let n = int.min(batch_size, int.min(remaining, room))
+              let counts = send_batch(n, counts)
+              io.println(
+                string.concat([
+                  "enqueued ",
+                  int.to_string(counts.enqueued),
+                  "/",
+                  int.to_string(total),
+                  " in_flight≈",
+                  int.to_string(in_flight + n),
+                  " errors=",
+                  int.to_string(counts.errors),
+                ]),
+              )
+              send_paced(
+                sent + n,
+                total,
+                counts,
+                collector_before_received,
+                started,
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn send_batch(n: Int, counts: Counts) -> Counts {
+  case n <= 0 {
     True -> counts
     False -> {
       let result =
@@ -123,23 +196,7 @@ fn send_loop(i: Int, total: Int, counts: Counts) -> Counts {
         Error(_) -> Counts(..counts, errors: counts.errors + 1)
       }
 
-      let next = i + 1
-      case next % progress_every == 0 {
-        True ->
-          io.println(
-            string.concat([
-              "enqueued ",
-              int.to_string(counts.enqueued),
-              "/",
-              int.to_string(total),
-              " errors=",
-              int.to_string(counts.errors),
-            ]),
-          )
-        False -> Nil
-      }
-
-      send_loop(next, total, counts)
+      send_batch(n - 1, counts)
     }
   }
 }
