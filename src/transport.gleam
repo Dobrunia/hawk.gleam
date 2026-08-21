@@ -1,7 +1,5 @@
 import event.{type Event}
-import gleam/http
 import gleam/http/request
-import gleam/httpc
 import gleam/int
 import gleam/string
 
@@ -10,6 +8,20 @@ pub type Transport {
 }
 
 const default_url = "https://k1.hawk.so/"
+
+@external(erlang, "transport_ffi", "configure")
+fn configure_ffi(max_connections: Int) -> Result(Nil, Nil)
+
+@external(erlang, "transport_ffi", "send")
+fn send_ffi(url: String, body: String) -> Result(Int, Nil)
+
+@internal
+pub fn configure(max_connections: Int) -> Result(Nil, String) {
+  case configure_ffi(max_connections) {
+    Ok(_) -> Ok(Nil)
+    Error(_) -> Error("Failed to configure Hawk HTTP client")
+  }
+}
 
 @internal
 pub fn is_success_status(status: Int) -> Bool {
@@ -31,29 +43,17 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
   case request.to(transport.url) {
     Error(_) -> Error("Invalid transport URL")
 
-    Ok(req) -> {
-      let req =
-        req
-        |> request.set_method(http.Post)
-        |> request.set_header("content-type", "application/json")
-        |> request.set_body(event_json)
-
-      case httpc.send(req) {
+    Ok(_) ->
+      case send_ffi(transport.url, event_json) {
         Error(_) -> Error("HTTP request failed")
 
-        Ok(response) -> {
-          case is_success_status(response.status) {
+        Ok(status) -> {
+          case is_success_status(status) {
             True -> Ok(Nil)
             False ->
-              Error(
-                string.concat([
-                  "HTTP status code ",
-                  int.to_string(response.status),
-                ]),
-              )
+              Error(string.concat(["HTTP status code ", int.to_string(status)]))
           }
         }
       }
-    }
   }
 }

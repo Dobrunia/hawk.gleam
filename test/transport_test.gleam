@@ -3,6 +3,11 @@ import transport
 
 const default_url = "https://k1.hawk.so/"
 
+pub fn configures_dedicated_http_profile_test() {
+  assert transport.configure(8) == Ok(Nil)
+  assert transport.configure(8) == Ok(Nil)
+}
+
 pub fn new_empty_url_test() {
   let result = transport.new("")
 

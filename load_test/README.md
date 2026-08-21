@@ -9,7 +9,10 @@ cd load_test/collector
 go run .
 ```
 
-Stdout every second: `received`, `rps`, `bytes`. Snapshot: `GET http://127.0.0.1:8787/stats`
+Stdout every second: `received`, `rps`, `bytes`.
+
+- Snapshot: `GET http://127.0.0.1:8787/stats`
+- Reset counters and latency samples: `POST http://127.0.0.1:8787/reset`
 
 ## Terminal 2 — generator
 
@@ -22,6 +25,17 @@ gleam run -- 10000
 
 Generator calls `hawk.init(token, option.Some("http://127.0.0.1:8787/"))`. Production apps pass `option.None`.
 
-Prints `enqueued` / `enqueue_errors` / `offered_rps`. `hawk.send` is enqueue into the dispatcher, not HTTP. After drain sleep, collector `received` should be ≈ `enqueued`. Gap = pending, in-flight, or `Event was not sent` on the generator console.
+`hawk.send` is enqueue into the dispatcher, not HTTP. The generator resets the collector, records the initial `received`, and polls `/stats` until `received_delta == enqueued` or the 120s timeout expires.
 
-Default N is 10000. Catcher has 2 blocking HTTP workers — accepted RPS is that pool, not offered RPS.
+The final report includes:
+
+- enqueue and accepted RPS;
+- end-to-end enqueue → collector p50/p95/p99 latency;
+- peak dispatcher mailbox and pending queue depth;
+- peak dispatcher and total BEAM memory;
+- dispatcher reductions, BEAM runtime and approximate CPU utilization;
+- final delivery gap and worker utilization.
+
+Default N is 10000. Catcher has 8 blocking HTTP workers and a dedicated `hawk_gleam` `httpc` profile capped at 8 sessions/connections. A worker has at most one in-flight request; connections are pooled and reused, not permanently pinned to worker IDs.
+
+Dispatcher pending is an in-memory FIFO capped at 10000 events. Overflow is dropped with `Pending queue capacity exceeded`; the Erlang dispatcher mailbox remains unbounded.

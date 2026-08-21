@@ -1,7 +1,7 @@
 -module(snapshot_ffi).
 -export([get_snapshot/0, put_snapshot/1, new_user_id/0]).
 
--define(KEY, hawk_gleam_dispatcher_snapshot_v2).
+-define(KEY, hawk_gleam_dispatcher_snapshot_v3).
 
 get_snapshot() ->
     try persistent_term:get(?KEY) of

@@ -8,6 +8,7 @@ import otp/worker_supervisor
 pub fn start(
   integration_token: String,
   transport: Option(String),
+  worker_count: Int,
 ) -> Result(Nil, String) {
   let worker_factory_name = process.new_name("hawk_http_worker_factory")
 
@@ -18,6 +19,7 @@ pub fn start(
       integration_token,
       worker_factory_name,
       transport,
+      worker_count,
     ))
 
   case static_supervisor.start(supervisor) {

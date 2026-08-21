@@ -24,6 +24,21 @@ pub fn main() -> Nil {
 }
 ```
 
+`hawk.init` starts 8 HTTP workers by default. Override the pool size without
+changing the default API:
+
+```gleam
+hawk.init_with_options(
+  "YOUR_INTEGRATION_TOKEN",
+  option.None,
+  hawk.Options(worker_count: 16),
+)
+```
+
+Each worker has at most one in-flight request. Hawk uses an isolated `httpc`
+profile with the same session/connection limit as `worker_count`; connections
+are pooled rather than permanently assigned to worker IDs.
+
 ## Development
 
 ```sh

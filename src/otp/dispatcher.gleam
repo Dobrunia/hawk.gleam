@@ -1,12 +1,14 @@
 import event
 import gleam/erlang/atom
 import gleam/erlang/process.{type Name, type Subject}
+import gleam/int
 import gleam/list
 import gleam/option.{type Option}
 import gleam/otp/actor
 import gleam/otp/factory_supervisor
 import gleam/otp/supervision
 import gleam/result
+import otp/bounded_queue
 import otp/http_worker
 import otp/protocol
 import otp/snapshot
@@ -14,6 +16,8 @@ import transport
 import utils/logger
 
 const default_catcher_type = "errors/default"
+
+const max_pending_events = 10_000
 
 type WorkerStatus {
   Free
@@ -29,22 +33,22 @@ type Worker {
   )
 }
 
-type Pending {
-  Pending(next: List(event.Event), incoming: List(event.Event))
-}
-
 type State {
   State(
     integration_token: String,
     default_user: event.User,
     custom_transport: Option(String),
     workers: List(Worker),
-    pending: Pending,
+    pending: bounded_queue.Queue(event.Event),
+    peak_pending: Int,
   )
 }
 
 @external(erlang, "gleam_erlang_ffi", "identity")
 fn atom_to_name(atom: atom.Atom) -> Name(protocol.DispatcherMessage)
+
+@external(erlang, "dispatcher_ffi", "process_metrics")
+fn process_metrics(pid: process.Pid) -> #(Int, Int, Int)
 
 fn name() -> Name(protocol.DispatcherMessage) {
   atom.create("hawk_gleam_dispatcher")
@@ -71,6 +75,21 @@ pub fn enqueue(payload: event.EventPayload) -> Result(Nil, String) {
 }
 
 @internal
+pub fn stats() -> Result(protocol.DispatcherStats, String) {
+  case process.named(name()) {
+    Error(_) -> Error("Hawk is not initialized")
+    Ok(pid) -> {
+      let #(mailbox, memory_bytes, reductions) = process_metrics(pid)
+      let stats =
+        actor.call(process.named_subject(name()), 5000, fn(reply) {
+          protocol.GetStats(mailbox, memory_bytes, reductions, reply)
+        })
+      Ok(stats)
+    }
+  }
+}
+
+@internal
 pub fn supervised(
   integration_token: String,
   worker_factory_name: Name(
@@ -80,6 +99,7 @@ pub fn supervised(
     ),
   ),
   transport: Option(String),
+  worker_count: Int,
 ) {
   supervision.worker(fn() {
     actor.new_with_initialiser(5000, fn(dispatcher) {
@@ -88,33 +108,25 @@ pub fn supervised(
       let http_transport = to_http_transport(custom_transport)
       let factory = factory_supervisor.get_by_name(worker_factory_name)
 
-      use worker_1 <- result.try(start_worker(
-        factory,
-        1,
-        dispatcher,
-        http_transport,
+      use _ <- result.try(transport.configure(worker_count))
+
+      snapshot.save(snapshot.Snapshot(
+        default_user: restored.default_user,
+        transport: custom_transport,
       ))
 
-      use worker_2 <- result.try(start_worker(
-        factory,
-        2,
-        dispatcher,
-        http_transport,
-      ))
+      use workers <- result.try(
+        start_workers(factory, dispatcher, http_transport, worker_count, 1, []),
+      )
 
       let state =
         State(
           integration_token: integration_token,
           default_user: restored.default_user,
           custom_transport: custom_transport,
-          workers: [
-            Worker(1, worker_1, Free, option.None),
-            Worker(2, worker_2, Free, option.None),
-          ],
-          pending: pending_from_list(list.append(
-            restored.inflight,
-            restored.pending,
-          )),
+          workers: workers,
+          pending: bounded_queue.new(max_pending_events),
+          peak_pending: 0,
         )
 
       let state = assign_pending(state)
@@ -161,52 +173,42 @@ fn start_worker(
   }
 }
 
-fn pending_from_list(events: List(event.Event)) -> Pending {
-  Pending(next: events, incoming: [])
-}
-
-fn pending_to_list(pending: Pending) -> List(event.Event) {
-  list.append(pending.next, list.reverse(pending.incoming))
-}
-
-fn pending_push(pending: Pending, event: event.Event) -> Pending {
-  Pending(..pending, incoming: [event, ..pending.incoming])
-}
-
-fn pending_pop(pending: Pending) -> Result(#(event.Event, Pending), Nil) {
-  case pending.next {
-    [event, ..rest] -> Ok(#(event, Pending(..pending, next: rest)))
-
-    [] ->
-      case list.reverse(pending.incoming) {
-        [] -> Error(Nil)
-        [event, ..rest] -> Ok(#(event, Pending(next: rest, incoming: [])))
-      }
+fn start_workers(
+  factory,
+  dispatcher: Subject(protocol.DispatcherMessage),
+  worker_transport: transport.Transport,
+  worker_count: Int,
+  id: Int,
+  workers: List(Worker),
+) -> Result(List(Worker), String) {
+  case id > worker_count {
+    True -> Ok(list.reverse(workers))
+    False -> {
+      use subject <- result.try(start_worker(
+        factory,
+        id,
+        dispatcher,
+        worker_transport,
+      ))
+      start_workers(
+        factory,
+        dispatcher,
+        worker_transport,
+        worker_count,
+        id + 1,
+        [Worker(id, subject, Free, option.None), ..workers],
+      )
+    }
   }
 }
 
-fn inflight_events(workers: List(Worker)) -> List(event.Event) {
-  list.filter_map(workers, fn(worker) {
-    case worker.current {
-      option.Some(event) -> Ok(event)
-      option.None -> Error(Nil)
+fn busy_worker_count(workers: List(Worker)) -> Int {
+  list.fold(workers, 0, fn(total, worker) {
+    case worker.status {
+      Busy -> total + 1
+      Free -> total
     }
   })
-}
-
-fn durable(state: State) -> snapshot.Snapshot {
-  snapshot.Snapshot(
-    default_user: state.default_user,
-    pending: pending_to_list(state.pending),
-    inflight: inflight_events(state.workers),
-    transport: state.custom_transport,
-  )
-}
-
-/// Persist first, then send. Crash after persist + before send → replay.
-fn commit(state: State) -> State {
-  snapshot.save(durable(state))
-  state
 }
 
 fn set_current(
@@ -228,8 +230,8 @@ fn assign_pending(state: State) -> State {
     Error(_) -> state
 
     Ok(worker) ->
-      case pending_pop(state.pending) {
-        Error(_) -> commit(state)
+      case bounded_queue.pop(state.pending) {
+        Error(_) -> state
 
         Ok(#(event, rest)) -> {
           let state =
@@ -243,7 +245,6 @@ fn assign_pending(state: State) -> State {
                 option.Some(event),
               ),
             )
-            |> commit
 
           actor.send(worker.subject, protocol.ProcessEvent(event))
           assign_pending(state)
@@ -263,6 +264,22 @@ fn handle_message(
 
     protocol.WorkerOnline(worker_id, worker_subject) ->
       handle_worker_online(state, worker_id, worker_subject)
+
+    protocol.GetStats(mailbox, memory_bytes, reductions, reply) -> {
+      actor.send(
+        reply,
+        protocol.DispatcherStats(
+          pending: bounded_queue.size(state.pending),
+          peak_pending: state.peak_pending,
+          mailbox: mailbox,
+          memory_bytes: memory_bytes,
+          reductions: reductions,
+          busy_workers: busy_worker_count(state.workers),
+          total_workers: list.length(state.workers),
+        ),
+      )
+      actor.continue(state)
+    }
   }
 }
 
@@ -346,5 +363,18 @@ fn handle_worker_ready(
 }
 
 fn dispatch_event(state: State, event: event.Event) -> State {
-  assign_pending(State(..state, pending: pending_push(state.pending, event)))
+  case bounded_queue.push(state.pending, event) {
+    Error(_) -> {
+      logger.event_not_sent("Pending queue capacity exceeded")
+      state
+    }
+
+    Ok(pending) -> {
+      let peak_pending =
+        int.max(state.peak_pending, bounded_queue.size(pending))
+      assign_pending(
+        State(..state, pending: pending, peak_pending: peak_pending),
+      )
+    }
+  }
 }
