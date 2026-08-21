@@ -1,4 +1,4 @@
-name: test
+name: ci
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -17,7 +17,22 @@ jobs:
           otp-version: "29"
           gleam-version: "1.18.1"
           rebar3-version: "3"
-          # elixir-version: "1"
       - run: gleam deps download
-      - run: gleam test
-      - run: gleam format --check src test
+      - name: Build
+        run: gleam build
+
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29"
+          gleam-version: "1.18.1"
+          rebar3-version: "3"
+      - run: gleam deps download
+      - name: Test
+        run: gleam test
+      - name: Format
+        run: gleam format --check src test
