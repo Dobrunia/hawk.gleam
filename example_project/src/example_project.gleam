@@ -1,6 +1,8 @@
 import dot_env
 import dot_env/env
+import event
 import gleam/io
+import gleam/option
 import hawk_gleam as hawk
 
 pub fn main() -> Nil {
@@ -12,7 +14,13 @@ pub fn main() -> Nil {
 
     Ok(token) -> {
       let assert Ok(_) = hawk.init(token)
-      let assert Ok(_) = hawk.send("Hawk gleam example")
+      let assert Ok(_) =
+        hawk.send(event.EventPayload(
+          title: "Hawk gleam example",
+          event_type: option.Some("demo"),
+          context: option.Some("example_project after hawk.init"),
+          user: option.Some("example-user"),
+        ))
       Nil
     }
   }

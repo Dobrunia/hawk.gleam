@@ -1,4 +1,5 @@
 import event
+import gleam/erlang/atom
 import gleam/erlang/process.{type Name, type Subject}
 import gleam/list
 import gleam/otp/actor
@@ -32,6 +33,33 @@ type State {
   )
 }
 
+@external(erlang, "gleam_erlang_ffi", "identity")
+fn atom_to_name(atom: atom.Atom) -> Name(protocol.DispatcherMessage)
+
+fn name() -> Name(protocol.DispatcherMessage) {
+  atom.create("hawk_gleam_dispatcher")
+  |> atom_to_name
+}
+
+@internal
+pub fn is_running() -> Bool {
+  case process.named(name()) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+}
+
+@internal
+pub fn enqueue(payload: event.EventPayload) -> Result(Nil, String) {
+  case process.named(name()) {
+    Error(_) -> Error("Hawk is not initialized")
+    Ok(_) -> {
+      actor.send(process.named_subject(name()), protocol.Enqueue(payload))
+      Ok(Nil)
+    }
+  }
+}
+
 @internal
 pub fn supervised(
   integration_token: String,
@@ -62,6 +90,7 @@ pub fn supervised(
 
       Ok(actor.initialised(state))
     })
+    |> actor.named(name())
     |> actor.on_message(handle_message)
     |> actor.start
   })
