@@ -13,7 +13,6 @@ links = [
 
 # Public API is `hawk_gleam`. Everything else is implementation.
 internal_modules = [
-  "event",
   "otp/*",
   "transport",
   "utils/*",

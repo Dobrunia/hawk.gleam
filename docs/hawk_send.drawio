@@ -29,7 +29,7 @@
           <mxGeometry x="330" y="310" width="220" height="70" as="geometry" />
         </mxCell>
 
-        <mxCell id="8" value="handle_enqueue&#xa;apply_default_user + validate → Event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="8" value="handle_enqueue&#xa;generated user {id} + validate → Event&#xa;payload: title + optional type, без context/user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="330" y="420" width="220" height="60" as="geometry" />
         </mxCell>
 
@@ -41,19 +41,19 @@
           <mxGeometry x="640" y="535" width="180" height="50" as="geometry" />
         </mxCell>
 
-        <mxCell id="11" value="bounded_queue.push?&#xa;size &lt; 10 000" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+        <mxCell id="11" value="можно принять?&#xa;worker Free&#xa;ИЛИ pending.length &lt; 100" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
           <mxGeometry x="340" y="640" width="200" height="100" as="geometry" />
         </mxCell>
 
-        <mxCell id="12" value="queue full&#xa;log error, drop newest&#xa;memory не растёт" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="12" value="pending full (100)&#xa;log error, drop newest&#xa;State.pending не растёт" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="40" y="650" width="200" height="80" as="geometry" />
         </mxCell>
 
-        <mxCell id="13" value="queued; assign_pending&#xa;когда worker Free: pop&#xa;ProcessEvent → worker mailbox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="13" value="Free: current = Event&#xa;Busy: append в FIFO List&#xa;commit snapshot перед ProcessEvent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="330" y="790" width="220" height="70" as="geometry" />
         </mxCell>
 
-        <mxCell id="14" value="ждёт HTTP&#xa;httpc.send блокирует worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+        <mxCell id="14" value="один HTTP worker ждёт синхронно&#xa;httpc.send · max 1 in-flight request&#xa;default profile может reuse TCP keep-alive" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="330" y="900" width="220" height="60" as="geometry" />
         </mxCell>
 
@@ -65,11 +65,11 @@
           <mxGeometry x="640" y="1015" width="200" height="50" as="geometry" />
         </mxCell>
 
-        <mxCell id="15" value="WorkerReady(id)&#xa;→ dispatcher mailbox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="15" value="WorkerReady&#xa;→ dispatcher mailbox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="340" y="1120" width="200" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="16" value="bounded_queue.pop → если есть Event: этому worker&#xa;иначе status = Free, current = None" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+        <mxCell id="16" value="current = None; List pop head&#xa;есть Event → commit snapshot + ProcessEvent&#xa;нет Event → worker Free + commit snapshot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
           <mxGeometry x="290" y="1220" width="300" height="70" as="geometry" />
         </mxCell>
 

@@ -1,23 +1,14 @@
 import event
-import gleam/json
+import gleam/int
 import gleam/option
+import gleam/string
 import hawk_gleam as hawk
 
 pub fn charge(amount: Int) -> Nil {
   let assert Ok(_) =
     hawk.send(event.EventPayload(
-      title: "Payment charged",
+      title: string.concat(["Payment charged: ", int.to_string(amount)]),
       event_type: option.Some("info"),
-      context: option.Some([
-        #("module", json.string("example_project/payments.charge")),
-        #("amount", json.int(amount)),
-      ]),
-      user: option.Some(event.User(
-        id: "buyer-42",
-        name: option.Some("buyer-42"),
-        url: option.None,
-        photo: option.None,
-      )),
     ))
   Nil
 }
@@ -25,21 +16,6 @@ pub fn charge(amount: Int) -> Nil {
 /// Empty title → dispatcher logs, send still returns Ok.
 pub fn charge_with_broken_payload() -> Nil {
   let assert Ok(_) =
-    hawk.send(event.EventPayload(
-      title: "",
-      event_type: option.Some("error"),
-      context: option.Some([
-        #(
-          "module",
-          json.string("example_project/payments.charge_with_broken_payload"),
-        ),
-      ]),
-      user: option.Some(event.User(
-        id: "buyer-42",
-        name: option.Some("buyer-42"),
-        url: option.None,
-        photo: option.None,
-      )),
-    ))
+    hawk.send(event.EventPayload(title: "", event_type: option.Some("error")))
   Nil
 }

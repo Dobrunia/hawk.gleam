@@ -4,7 +4,6 @@ import example_project/checkout
 import example_project/payments
 import gleam/erlang/process
 import gleam/io
-import gleam/option
 import hawk_gleam as hawk
 
 pub fn main() -> Nil {
@@ -15,14 +14,14 @@ pub fn main() -> Nil {
       io.println("Copy .env.example to .env and set HAWK_INTEGRATION_TOKEN")
 
     Ok(token) -> {
-      let assert Ok(_) = hawk.init(token, option.None)
+      let assert Ok(_) = hawk.init(token)
       io.println("init done, sending from other modules")
 
       checkout.place_order("ord-1001")
       payments.charge(1500)
       payments.charge_with_broken_payload()
 
-      io.println("waiting for HTTP workers before exit")
+      io.println("waiting for the HTTP worker before exit")
       process.sleep(3000)
       io.println("exit")
     }

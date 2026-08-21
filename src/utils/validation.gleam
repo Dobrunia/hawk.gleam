@@ -13,7 +13,7 @@ fn validate_length(
       Error(
         string.concat([
           field_name,
-          " length must be greater than ",
+          " length must be at least ",
           int.to_string(min),
           " characters",
         ]),
@@ -22,7 +22,7 @@ fn validate_length(
       Error(
         string.concat([
           field_name,
-          " length must be less than ",
+          " length must be at most ",
           int.to_string(max),
           " characters",
         ]),
@@ -79,28 +79,10 @@ pub fn validate_event_type(event_type: Option(String)) -> Result(Nil, String) {
   }
 }
 
-const min_context_length = 0
+const min_user_id_length = 1
 
-const max_context_length = 128
+const max_user_id_length = 128
 
-pub fn validate_context(context: Option(String)) -> Result(Nil, String) {
-  case context {
-    option.None -> Ok(Nil)
-
-    option.Some(value) ->
-      validate_length(value, min_context_length, max_context_length, "Context")
-  }
-}
-
-const min_user_length = 0
-
-const max_user_length = 64
-
-pub fn validate_user(user: Option(String)) -> Result(Nil, String) {
-  case user {
-    option.None -> Ok(Nil)
-
-    option.Some(value) ->
-      validate_length(value, min_user_length, max_user_length, "User")
-  }
+pub fn validate_user_id(user_id: String) -> Result(Nil, String) {
+  validate_length(user_id, min_user_id_length, max_user_id_length, "User ID")
 }

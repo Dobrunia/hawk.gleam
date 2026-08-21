@@ -10,13 +10,12 @@ pub type Transport {
 
 const default_url = "https://k1.hawk.so/"
 
-pub fn new(url: String) -> Transport {
-  case url {
-    "" -> Transport(default_url)
-    _ -> Transport(url)
-  }
+@internal
+pub fn new() -> Transport {
+  Transport(default_url)
 }
 
+@internal
 pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
   let event_json = event.to_json(event)
 
@@ -34,10 +33,10 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
         Error(_) -> Error("HTTP request failed")
 
         Ok(response) -> {
-          case response.status {
-            200 -> Ok(Nil)
+          case response.status >= 200 && response.status < 300 {
+            True -> Ok(Nil)
 
-            _ -> {
+            False -> {
               logger.log("Hawk returned unsuccessful HTTP status", logger.Error)
               Error("Hawk returned unsuccessful HTTP status")
             }
