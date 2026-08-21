@@ -83,30 +83,74 @@ pub fn validate_event_type(event_type: Option(String)) -> Result(Nil, String) {
   }
 }
 
-const min_context_length = 0
+const min_context_key_length = 1
 
-const max_context_length = 128
+const max_context_key_length = 64
+
+const min_context_value_length = 0
+
+const max_context_value_length = 128
 
 @internal
-pub fn validate_context(context: Option(String)) -> Result(Nil, String) {
-  case context {
-    option.None -> Ok(Nil)
-
-    option.Some(value) ->
-      validate_length(value, min_context_length, max_context_length, "Context")
-  }
+pub fn validate_context_key(key: String) -> Result(Nil, String) {
+  validate_length(
+    key,
+    min_context_key_length,
+    max_context_key_length,
+    "Context key",
+  )
 }
 
-const min_user_length = 0
+@internal
+pub fn validate_context_value(value: String) -> Result(Nil, String) {
+  validate_length(
+    value,
+    min_context_value_length,
+    max_context_value_length,
+    "Context value",
+  )
+}
 
-const max_user_length = 64
+const min_user_id_length = 1
+
+const max_user_id_length = 64
+
+const min_user_field_length = 0
+
+const max_user_field_length = 64
 
 @internal
-pub fn validate_user(user: Option(String)) -> Result(Nil, String) {
-  case user {
-    option.None -> Ok(Nil)
+pub fn validate_user_id(id: String) -> Result(Nil, String) {
+  validate_length(id, min_user_id_length, max_user_id_length, "User id")
+}
 
-    option.Some(value) ->
-      validate_length(value, min_user_length, max_user_length, "User")
+@internal
+pub fn validate_user_name(name: Option(String)) -> Result(Nil, String) {
+  validate_optional_user_field(name, "User name")
+}
+
+@internal
+pub fn validate_user_url(url: Option(String)) -> Result(Nil, String) {
+  validate_optional_user_field(url, "User url")
+}
+
+@internal
+pub fn validate_user_photo(photo: Option(String)) -> Result(Nil, String) {
+  validate_optional_user_field(photo, "User photo")
+}
+
+fn validate_optional_user_field(
+  value: Option(String),
+  field_name: String,
+) -> Result(Nil, String) {
+  case value {
+    option.None -> Ok(Nil)
+    option.Some(field) ->
+      validate_length(
+        field,
+        min_user_field_length,
+        max_user_field_length,
+        field_name,
+      )
   }
 }

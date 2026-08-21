@@ -1,4 +1,5 @@
 import event
+import gleam/json
 import gleam/option
 import gleeunit
 import hawk_gleam as hawk
@@ -41,8 +42,13 @@ pub fn send_full_payload_test() {
     hawk.send(event.EventPayload(
       title: "title",
       event_type: option.Some("error"),
-      context: option.Some("from tests"),
-      user: option.Some("test-user"),
+      context: option.Some([#("from", json.string("tests"))]),
+      user: option.Some(event.User(
+        id: "test-user",
+        name: option.Some("Test User"),
+        url: option.None,
+        photo: option.None,
+      )),
     ))
 
   assert result == Ok(Nil)

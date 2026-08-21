@@ -68,38 +68,70 @@ pub fn validate_event_type_test() {
   })
 }
 
-pub fn validate_context_test() {
+pub fn validate_context_key_test() {
   let cases = [
-    #(option.None, Ok(Nil)),
-    #(option.Some(""), Ok(Nil)),
-    #(option.Some("context"), Ok(Nil)),
-    #(option.Some("a" |> string.repeat(128)), Ok(Nil)),
+    #("", Error("Context key length must be greater than 1 characters")),
+    #("module", Ok(Nil)),
+    #("a" |> string.repeat(64), Ok(Nil)),
     #(
-      option.Some("a" |> string.repeat(129)),
-      Error("Context length must be less than 128 characters"),
+      "a" |> string.repeat(65),
+      Error("Context key length must be less than 64 characters"),
     ),
   ]
 
   list.each(cases, fn(test_case) {
     let #(value, expected) = test_case
-    assert validation.validate_context(value) == expected
+    assert validation.validate_context_key(value) == expected
   })
 }
 
-pub fn validate_user_test() {
+pub fn validate_context_value_test() {
   let cases = [
-    #(option.None, Ok(Nil)),
-    #(option.Some(""), Ok(Nil)),
-    #(option.Some("user"), Ok(Nil)),
-    #(option.Some("a" |> string.repeat(64)), Ok(Nil)),
+    #("", Ok(Nil)),
+    #("\"ok\"", Ok(Nil)),
+    #("a" |> string.repeat(128), Ok(Nil)),
     #(
-      option.Some("a" |> string.repeat(65)),
-      Error("User length must be less than 64 characters"),
+      "a" |> string.repeat(129),
+      Error("Context value length must be less than 128 characters"),
     ),
   ]
 
   list.each(cases, fn(test_case) {
     let #(value, expected) = test_case
-    assert validation.validate_user(value) == expected
+    assert validation.validate_context_value(value) == expected
+  })
+}
+
+pub fn validate_user_id_test() {
+  let cases = [
+    #("", Error("User id length must be greater than 1 characters")),
+    #("a", Ok(Nil)),
+    #("a" |> string.repeat(64), Ok(Nil)),
+    #(
+      "a" |> string.repeat(65),
+      Error("User id length must be less than 64 characters"),
+    ),
+  ]
+
+  list.each(cases, fn(test_case) {
+    let #(value, expected) = test_case
+    assert validation.validate_user_id(value) == expected
+  })
+}
+
+pub fn validate_user_name_test() {
+  let cases = [
+    #(option.None, Ok(Nil)),
+    #(option.Some(""), Ok(Nil)),
+    #(option.Some("Ada"), Ok(Nil)),
+    #(
+      option.Some("a" |> string.repeat(65)),
+      Error("User name length must be less than 64 characters"),
+    ),
+  ]
+
+  list.each(cases, fn(test_case) {
+    let #(value, expected) = test_case
+    assert validation.validate_user_name(value) == expected
   })
 }

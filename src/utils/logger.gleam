@@ -9,7 +9,7 @@ pub type Level {
 
 const prefix = "[Hawk]"
 
-@external(erlang, "hawk_gleam_ffi", "println")
+@external(erlang, "logger_ffi", "println")
 fn println(text: String) -> Nil
 
 @internal
@@ -22,4 +22,9 @@ pub fn log(message: String, level: Level) -> Nil {
   }
 
   println(string.concat([prefix, " ", level, " ", message]))
+}
+
+@internal
+pub fn event_not_sent(reason: String) -> Nil {
+  log(string.concat(["Event was not sent: ", reason]), Error)
 }

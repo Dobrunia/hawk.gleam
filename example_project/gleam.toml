@@ -5,5 +5,7 @@ target = "erlang"
 # Local catcher, not Hex. This package is a usage demo — not part of hawk_gleam's published tarball.
 [dependencies]
 dot_env = ">= 1.3.0 and < 2.0.0"
+gleam_erlang = ">= 1.3.0 and < 2.0.0"
+gleam_json = ">= 3.1.0 and < 4.0.0"
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"
 hawk_gleam = { path = ".." }

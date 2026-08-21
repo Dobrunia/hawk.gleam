@@ -47,7 +47,7 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
             False ->
               Error(
                 string.concat([
-                  "Event was not delivered: HTTP status code ",
+                  "HTTP status code ",
                   int.to_string(response.status),
                 ]),
               )

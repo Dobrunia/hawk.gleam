@@ -1,8 +1,9 @@
 import dot_env
 import dot_env/env
-import event
+import example_project/checkout
+import example_project/payments
+import gleam/erlang/process
 import gleam/io
-import gleam/option
 import hawk_gleam as hawk
 
 pub fn main() -> Nil {
@@ -14,14 +15,15 @@ pub fn main() -> Nil {
 
     Ok(token) -> {
       let assert Ok(_) = hawk.init(token)
-      let assert Ok(_) =
-        hawk.send(event.EventPayload(
-          title: "Hawk gleam example",
-          event_type: option.Some("demo"),
-          context: option.Some("example_project after hawk.init"),
-          user: option.Some("example-user"),
-        ))
-      Nil
+      io.println("init done, sending from other modules")
+
+      checkout.place_order("ord-1001")
+      payments.charge(1500)
+      payments.charge_with_broken_payload()
+
+      io.println("waiting for HTTP workers before exit")
+      process.sleep(3000)
+      io.println("exit")
     }
   }
 }

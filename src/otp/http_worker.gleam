@@ -52,7 +52,7 @@ fn handle_message(
       case transport.send(state.transport, event) {
         Ok(_) -> Nil
 
-        Error(error) -> logger.log(error, logger.Error)
+        Error(error) -> logger.event_not_sent(error)
       }
 
       actor.send(state.dispatcher, protocol.WorkerReady(state.id))

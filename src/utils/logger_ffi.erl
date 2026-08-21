@@ -1,4 +1,4 @@
--module(hawk_gleam_ffi).
+-module(logger_ffi).
 -export([println/1]).
 
 println(Text) ->
