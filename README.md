@@ -12,7 +12,7 @@ import gleam/option
 import hawk_gleam as hawk
 
 pub fn main() -> Nil {
-  let assert Ok(_) = hawk.init("YOUR_INTEGRATION_TOKEN")
+  let assert Ok(_) = hawk.init("YOUR_INTEGRATION_TOKEN", option.None)
   let assert Ok(_) =
     hawk.send(event.EventPayload(
       title: "Hello from Hawk",

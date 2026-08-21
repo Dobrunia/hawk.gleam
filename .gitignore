@@ -5,3 +5,6 @@ erl_crash.dump
 .env
 .DS_Store
 TODO.md
+/load_test/generator/build
+/load_test/collector/collector
+/load_test/collector/collector.exe

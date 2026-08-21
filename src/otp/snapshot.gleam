@@ -1,5 +1,5 @@
 import event
-import gleam/option
+import gleam/option.{type Option}
 
 /// Durable dispatcher state. Survives dispatcher/worker restart in this VM.
 /// Worker subjects are not stored — they die with the processes.
@@ -8,6 +8,7 @@ pub type Snapshot {
     default_user: event.User,
     pending: List(event.Event),
     inflight: List(event.Event),
+    transport: Option(String),
   )
 }
 
@@ -34,7 +35,7 @@ pub fn load_or_init() -> Snapshot {
   case get_snapshot() {
     Ok(snapshot) -> snapshot
     Error(_) -> {
-      let snapshot = Snapshot(new_user(), [], [])
+      let snapshot = Snapshot(new_user(), [], [], option.None)
       put_snapshot(snapshot)
       snapshot
     }

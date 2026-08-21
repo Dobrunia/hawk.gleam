@@ -5,7 +5,11 @@ import transport
 import utils/logger
 
 pub type StartArgument {
-  StartArgument(id: Int, dispatcher: Subject(protocol.DispatcherMessage))
+  StartArgument(
+    id: Int,
+    dispatcher: Subject(protocol.DispatcherMessage),
+    transport: transport.Transport,
+  )
 }
 
 type State {
@@ -22,7 +26,7 @@ pub fn start(argument: StartArgument) {
     State(
       id: argument.id,
       dispatcher: argument.dispatcher,
-      transport: transport.new(""),
+      transport: argument.transport,
     )
 
   case

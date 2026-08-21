@@ -1,10 +1,14 @@
 import gleam/erlang/process
+import gleam/option.{type Option}
 import gleam/otp/static_supervisor
 import otp/dispatcher
 import otp/worker_supervisor
 
 @internal
-pub fn start(integration_token: String) -> Result(Nil, String) {
+pub fn start(
+  integration_token: String,
+  transport: Option(String),
+) -> Result(Nil, String) {
   let worker_factory_name = process.new_name("hawk_http_worker_factory")
 
   let supervisor =
@@ -13,6 +17,7 @@ pub fn start(integration_token: String) -> Result(Nil, String) {
     |> static_supervisor.add(dispatcher.supervised(
       integration_token,
       worker_factory_name,
+      transport,
     ))
 
   case static_supervisor.start(supervisor) {

@@ -4,6 +4,7 @@ import example_project/checkout
 import example_project/payments
 import gleam/erlang/process
 import gleam/io
+import gleam/option
 import hawk_gleam as hawk
 
 pub fn main() -> Nil {
@@ -14,7 +15,7 @@ pub fn main() -> Nil {
       io.println("Copy .env.example to .env and set HAWK_INTEGRATION_TOKEN")
 
     Ok(token) -> {
-      let assert Ok(_) = hawk.init(token)
+      let assert Ok(_) = hawk.init(token, option.None)
       io.println("init done, sending from other modules")
 
       checkout.place_order("ord-1001")

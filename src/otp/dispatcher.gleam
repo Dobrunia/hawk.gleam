@@ -10,6 +10,7 @@ import gleam/result
 import otp/http_worker
 import otp/protocol
 import otp/snapshot
+import transport
 import utils/logger
 
 const default_catcher_type = "errors/default"
@@ -28,12 +29,17 @@ type Worker {
   )
 }
 
+type Pending {
+  Pending(next: List(event.Event), incoming: List(event.Event))
+}
+
 type State {
   State(
     integration_token: String,
     default_user: event.User,
+    custom_transport: Option(String),
     workers: List(Worker),
-    pending: List(event.Event),
+    pending: Pending,
   )
 }
 
@@ -73,25 +79,42 @@ pub fn supervised(
       Subject(protocol.WorkerMessage),
     ),
   ),
+  transport: Option(String),
 ) {
   supervision.worker(fn() {
     actor.new_with_initialiser(5000, fn(dispatcher) {
       let restored = snapshot.load_or_init()
+      let custom_transport = resolve_transport(transport, restored.transport)
+      let http_transport = to_http_transport(custom_transport)
       let factory = factory_supervisor.get_by_name(worker_factory_name)
 
-      use worker_1 <- result.try(start_worker(factory, 1, dispatcher))
+      use worker_1 <- result.try(start_worker(
+        factory,
+        1,
+        dispatcher,
+        http_transport,
+      ))
 
-      use worker_2 <- result.try(start_worker(factory, 2, dispatcher))
+      use worker_2 <- result.try(start_worker(
+        factory,
+        2,
+        dispatcher,
+        http_transport,
+      ))
 
       let state =
         State(
           integration_token: integration_token,
           default_user: restored.default_user,
+          custom_transport: custom_transport,
           workers: [
             Worker(1, worker_1, Free, option.None),
             Worker(2, worker_2, Free, option.None),
           ],
-          pending: list.append(restored.inflight, restored.pending),
+          pending: pending_from_list(list.append(
+            restored.inflight,
+            restored.pending,
+          )),
         )
 
       let state = assign_pending(state)
@@ -104,19 +127,61 @@ pub fn supervised(
   })
 }
 
+fn resolve_transport(
+  from_init: Option(String),
+  from_snapshot: Option(String),
+) -> Option(String) {
+  case from_init {
+    option.Some(url) -> option.Some(url)
+    option.None -> from_snapshot
+  }
+}
+
+fn to_http_transport(custom: Option(String)) -> transport.Transport {
+  case custom {
+    option.Some(url) -> transport.new(url)
+    option.None -> transport.new("")
+  }
+}
+
 fn start_worker(
   factory,
   id: Int,
   dispatcher: Subject(protocol.DispatcherMessage),
+  worker_transport: transport.Transport,
 ) -> Result(Subject(protocol.WorkerMessage), String) {
   case
     factory_supervisor.start_child(
       factory,
-      http_worker.StartArgument(id, dispatcher),
+      http_worker.StartArgument(id, dispatcher, worker_transport),
     )
   {
     Ok(worker) -> Ok(worker.data)
     Error(_) -> Error("Failed to start HTTP worker")
+  }
+}
+
+fn pending_from_list(events: List(event.Event)) -> Pending {
+  Pending(next: events, incoming: [])
+}
+
+fn pending_to_list(pending: Pending) -> List(event.Event) {
+  list.append(pending.next, list.reverse(pending.incoming))
+}
+
+fn pending_push(pending: Pending, event: event.Event) -> Pending {
+  Pending(..pending, incoming: [event, ..pending.incoming])
+}
+
+fn pending_pop(pending: Pending) -> Result(#(event.Event, Pending), Nil) {
+  case pending.next {
+    [event, ..rest] -> Ok(#(event, Pending(..pending, next: rest)))
+
+    [] ->
+      case list.reverse(pending.incoming) {
+        [] -> Error(Nil)
+        [event, ..rest] -> Ok(#(event, Pending(next: rest, incoming: [])))
+      }
   }
 }
 
@@ -132,8 +197,9 @@ fn inflight_events(workers: List(Worker)) -> List(event.Event) {
 fn durable(state: State) -> snapshot.Snapshot {
   snapshot.Snapshot(
     default_user: state.default_user,
-    pending: state.pending,
+    pending: pending_to_list(state.pending),
     inflight: inflight_events(state.workers),
+    transport: state.custom_transport,
   )
 }
 
@@ -158,14 +224,14 @@ fn set_current(
 }
 
 fn assign_pending(state: State) -> State {
-  case state.pending {
-    [] -> commit(state)
+  case list.find(state.workers, fn(worker) { worker.status == Free }) {
+    Error(_) -> state
 
-    [event, ..rest] ->
-      case list.find(state.workers, fn(worker) { worker.status == Free }) {
+    Ok(worker) ->
+      case pending_pop(state.pending) {
         Error(_) -> commit(state)
 
-        Ok(worker) -> {
+        Ok(#(event, rest)) -> {
           let state =
             State(
               ..state,
@@ -280,5 +346,5 @@ fn handle_worker_ready(
 }
 
 fn dispatch_event(state: State, event: event.Event) -> State {
-  assign_pending(State(..state, pending: list.append(state.pending, [event])))
+  assign_pending(State(..state, pending: pending_push(state.pending, event)))
 }
