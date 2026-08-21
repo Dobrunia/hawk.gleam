@@ -2,7 +2,8 @@ import event.{type Event}
 import gleam/http
 import gleam/http/request
 import gleam/httpc
-import utils/logger
+import gleam/int
+import gleam/string
 
 pub type Transport {
   Transport(url: String)
@@ -37,12 +38,15 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
 
         Ok(response) -> {
           case response.status {
-            200 -> Ok(Nil)
+            status if status >= 200 && status < 300 -> Ok(Nil)
 
-            _ -> {
-              logger.log("Hawk returned unsuccessful HTTP status", logger.Error)
-              Error("Hawk returned unsuccessful HTTP status")
-            }
+            status ->
+              Error(
+                string.concat([
+                  "Event was not delivered: HTTP status code ",
+                  int.to_string(status),
+                ]),
+              )
           }
         }
       }
