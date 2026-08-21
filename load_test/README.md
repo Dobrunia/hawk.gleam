@@ -1,6 +1,9 @@
 # Load test
 
-Fake collector + generator against local `hawk_gleam` (path dep). Measures catcher throughput, not Go.
+Fake collector + two generators against local catcher. Measures catcher throughput, not Go.
+
+- `src_old_version/generator` → old catcher (`hawk_gleam_old`)
+- `load_test/generator_new` → current `src`
 
 ## Terminal 1 — collector
 
@@ -14,28 +17,27 @@ Stdout every second: `received`, `rps`, `bytes`.
 - Snapshot: `GET http://127.0.0.1:8787/stats`
 - Reset counters and latency samples: `POST http://127.0.0.1:8787/reset`
 
-## Terminal 2 — generator
-
-PowerShell:
+## Terminal 2 — old catcher
 
 ```powershell
-cd load_test/generator
+cd src_old_version/generator
 gleam run -- 10000
 ```
 
-Generator calls `hawk.init(token, option.Some("http://127.0.0.1:8787/"))`. Production apps pass `option.None`.
+Calls `hawk.init(token, option.Some("http://127.0.0.1:8787/"))`.
 
-`hawk.send` is enqueue into the dispatcher, not HTTP. The generator resets the collector, records the initial `received`, and polls `/stats` until `received_delta == enqueued` or the 120s timeout expires.
+## Terminal 2 — current catcher
 
-The final report includes:
+Hardcode the collector URL in `src/transport.gleam` before this run.
 
-- enqueue and accepted RPS;
-- end-to-end enqueue → collector p50/p95/p99 latency;
-- peak dispatcher mailbox and pending queue depth;
-- peak dispatcher and total BEAM memory;
-- dispatcher reductions, BEAM runtime and approximate CPU utilization;
-- final delivery gap and worker utilization.
+```powershell
+cd load_test/generator_new
+gleam run -- 10000
+```
 
-Default N is 10000. Catcher has 8 blocking HTTP workers and a dedicated `hawk_gleam` `httpc` profile capped at 8 sessions/connections. A worker has at most one in-flight request; connections are pooled and reused, not permanently pinned to worker IDs.
+Calls `hawk.init(token)`. Same enqueue + poll loop; current API has no transport arg, context, or `stats()`.
 
-Dispatcher pending is an in-memory FIFO capped at 10000 events. Overflow is dropped with `Pending queue capacity exceeded`; the Erlang dispatcher mailbox remains unbounded.
+`hawk.send` is enqueue into the dispatcher, not HTTP. Each generator resets the collector, records the initial `received`, and polls `/stats` until `received_delta == enqueued` or the 120s timeout expires.
+
+Default N is 10000.
+
