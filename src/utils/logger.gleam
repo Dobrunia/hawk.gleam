@@ -10,6 +10,7 @@ pub type Level {
 
 const prefix = "[Hawk]"
 
+@internal
 pub fn log(message: String, level: Level) -> Nil {
   let level = case level {
     Log -> ""

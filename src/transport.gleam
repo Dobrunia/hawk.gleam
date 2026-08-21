@@ -10,6 +10,7 @@ pub type Transport {
 
 const default_url = "https://k1.hawk.so/"
 
+@internal
 pub fn new(url: String) -> Transport {
   case url {
     "" -> Transport(default_url)
@@ -17,6 +18,7 @@ pub fn new(url: String) -> Transport {
   }
 }
 
+@internal
 pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
   let event_json = event.to_json(event)
 

@@ -35,6 +35,7 @@ const min_integration_token_length = 1
 
 const max_integration_token_length = 256
 
+@internal
 pub fn validate_integration_token(
   integration_token: String,
 ) -> Result(Nil, String) {
@@ -46,6 +47,7 @@ pub fn validate_integration_token(
   )
 }
 
+@internal
 pub fn validate_catcher_type(catcher_type: String) -> Result(Nil, String) {
   case catcher_type {
     "errors/default" -> Ok(Nil)
@@ -57,6 +59,7 @@ const min_title_length = 1
 
 const max_title_length = 128
 
+@internal
 pub fn validate_title(title: String) -> Result(Nil, String) {
   validate_length(title, min_title_length, max_title_length, "Title")
 }
@@ -65,6 +68,7 @@ const min_event_type_length = 0
 
 const max_event_type_length = 64
 
+@internal
 pub fn validate_event_type(event_type: Option(String)) -> Result(Nil, String) {
   case event_type {
     option.None -> Ok(Nil)
@@ -83,6 +87,7 @@ const min_context_length = 0
 
 const max_context_length = 128
 
+@internal
 pub fn validate_context(context: Option(String)) -> Result(Nil, String) {
   case context {
     option.None -> Ok(Nil)
@@ -96,6 +101,7 @@ const min_user_length = 0
 
 const max_user_length = 64
 
+@internal
 pub fn validate_user(user: Option(String)) -> Result(Nil, String) {
   case user {
     option.None -> Ok(Nil)

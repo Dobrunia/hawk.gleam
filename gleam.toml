@@ -15,6 +15,7 @@ links = [
 internal_modules = [
   "catcher",
   "event",
+  "otp/*",
   "transport",
   "utils/*",
 ]

@@ -1,123 +1,39 @@
-Итоговый вариант для Hawk
+# Архитектура
 
-Я бы сделал так:
+## INIT
 
-hawk_gleam
-│
-├── init(token)
-│
-│
-└── Hawk Supervisor
-        |
-        |
-        +── Dispatcher
-        |
-        |
-        +── Worker Supervisor
-                 |
-                 +── HTTP Worker
-                 +── HTTP Worker
-                 +── HTTP Worker
-API наружу
+```
+hawk.init(token)
+    ↓
+otp/root_supervisor          static, OneForAll
+    ├── otp/worker_supervisor    factory, пока пустая
+    └── otp/dispatcher
+            │  start_child ×2
+            ↓
+        otp/http_worker          под factory
+            └── transport
+```
 
-Оставить максимально простым:
+Root поднимает factory, потом dispatcher. Dispatcher в initialiser просит factory на двух worker’ов. Supervisor дальше в send не участвует.
 
-hawk.init("token")
+## SEND
 
+ещё не в публичном API (`hawk.send` = `todo`), путь внутри dispatcher уже такой:
 
+```
 hawk.send(payload)
+    ↓
+dispatcher                     Enqueue
+    ↓
+валидация → Event
+    ↓
+свободный worker? ──да──→ http_worker     ProcessEvent
+         │                      ↓
+         нет                 transport.send
+         ↓                      ↓
+      pending                WorkerReady
+         │                      │
+         └──────── берёт следующий из pending, если есть
+```
 
-Пользователь ничего не знает про actor.
-
-Что поменять у тебя сейчас
-
-Сейчас:
-
-catcher
- |
- HTTP
-
-Разделить:
-
-Было:
-catcher.gleam
- State
- handle_message
- transport.send
-Станет:
-dispatcher.gleam
-
-
-Message {
-    SendEvent(Event)
-}
-
-
-
-
-worker.gleam
-
-
-Message {
-    Process(Event)
-}
-Отправка
-
-hawk.send:
-
-не ждёт HTTP:
-
-hawk.send()
-      |
-      v
-dispatcher mailbox
-
-
-      |
-      v
-
-
-Ok(Nil)
-
-То есть пользователь не тормозит.
-
-Worker
-
-А вот worker уже ждёт:
-
-transport.send()
-
-
-      |
-      v
-
-
-HTTP response
-
-
-      |
-      v
-
-
-ack/log
-Очередь
-
-Важно: actor mailbox уже является очередью.
-
-Не надо сразу писать свою очередь.
-
-BEAM уже умеет:
-
-messages:
-[
- event1,
- event2,
- event3
-]
-Что бы я сделал сейчас по шагам:
-Оставить твой catcher как будущий dispatcher.
-Убрать из него HTTP.
-Добавить worker.
-Сделать hawk.send -> dispatcher.
-Dispatcher делает actor.send(worker, event).
-Worker вызывает transport.send.
+`send` кладёт в mailbox dispatcher’а и сразу возвращается. HTTP ждёт только worker.

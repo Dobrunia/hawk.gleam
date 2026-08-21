@@ -35,6 +35,7 @@ fn validate_event(event: Event) -> Result(Nil, String) {
   Ok(Nil)
 }
 
+@internal
 pub fn create_new_and_valid_event(
   catcher_type: String,
   integration_token: String,
@@ -47,6 +48,7 @@ pub fn create_new_and_valid_event(
   }
 }
 
+@internal
 pub fn to_json(event: Event) -> String {
   let payload_fields = [
     #("title", json.string(event.payload.title)),
