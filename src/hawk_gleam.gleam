@@ -6,7 +6,7 @@ pub fn init(integration_token: String) -> Result(Nil, String) {
   case validation.validate_integration_token(integration_token) {
     Error(error) -> Error(error)
 
-    Ok(_) -> root_supervisor_supervisor.start(integration_token)
+    Ok(_) -> root_supervisor.start(integration_token)
   }
 }
 
