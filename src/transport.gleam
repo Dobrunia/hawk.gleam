@@ -12,6 +12,11 @@ pub type Transport {
 const default_url = "https://k1.hawk.so/"
 
 @internal
+pub fn is_success_status(status: Int) -> Bool {
+  status >= 200 && status < 300
+}
+
+@internal
 pub fn new(url: String) -> Transport {
   case url {
     "" -> Transport(default_url)
@@ -37,14 +42,13 @@ pub fn send(transport: Transport, event: Event) -> Result(Nil, String) {
         Error(_) -> Error("HTTP request failed")
 
         Ok(response) -> {
-          case response.status {
-            status if status >= 200 && status < 300 -> Ok(Nil)
-
-            status ->
+          case is_success_status(response.status) {
+            True -> Ok(Nil)
+            False ->
               Error(
                 string.concat([
                   "Event was not delivered: HTTP status code ",
-                  int.to_string(status),
+                  int.to_string(response.status),
                 ]),
               )
           }

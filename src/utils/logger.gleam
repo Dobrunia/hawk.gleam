@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/string
 
 pub type Level {
@@ -10,6 +9,9 @@ pub type Level {
 
 const prefix = "[Hawk]"
 
+@external(erlang, "hawk_gleam_ffi", "println")
+fn println(text: String) -> Nil
+
 @internal
 pub fn log(message: String, level: Level) -> Nil {
   let level = case level {
@@ -19,13 +21,5 @@ pub fn log(message: String, level: Level) -> Nil {
     Error -> "[ERROR]"
   }
 
-  io.println(
-    string.concat([
-      prefix,
-      " ",
-      level,
-      " ",
-      message,
-    ]),
-  )
+  println(string.concat([prefix, " ", level, " ", message]))
 }

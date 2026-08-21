@@ -33,3 +33,26 @@ pub fn send_after_init_test() {
 
   assert result == Ok(Nil)
 }
+
+pub fn send_full_payload_test() {
+  let assert Ok(_) = hawk.init("test_integration_token")
+
+  let result =
+    hawk.send(event.EventPayload(
+      title: "title",
+      event_type: option.Some("error"),
+      context: option.Some("from tests"),
+      user: option.Some("test-user"),
+    ))
+
+  assert result == Ok(Nil)
+}
+
+pub fn send_invalid_payload_still_ok_test() {
+  let assert Ok(_) = hawk.init("test_integration_token")
+
+  let result =
+    hawk.send(event.EventPayload("", option.None, option.None, option.None))
+
+  assert result == Ok(Nil)
+}
