@@ -12,7 +12,7 @@ cd load_test/collector
 go run .
 ```
 
-Stdout every second: `received`, `rps`, `bytes`.
+Stdout every second: `received`, `rps`, `bytes`. `POST /` emulates [hawk.collector](https://github.com/codex-team/hawk.collector) error intake (`token`/`catcherType`/`payload`, JSON `{code,error,message}`). JWT, Redis, Mongo, RabbitMQ skipped. `/stats` and `/reset` are load-test only.
 
 - Snapshot: `GET http://127.0.0.1:8787/stats`
 - Reset counters and latency samples: `POST http://127.0.0.1:8787/reset`
@@ -21,7 +21,7 @@ Stdout every second: `received`, `rps`, `bytes`.
 
 ```powershell
 cd src_old_version/generator
-gleam run -- 10000
+gleam run -- 1000
 ```
 
 Calls `hawk.init(token, option.Some("http://127.0.0.1:8787/"))`.

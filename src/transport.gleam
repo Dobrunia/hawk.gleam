@@ -9,6 +9,7 @@ pub type Transport {
 }
 
 const default_url = "http://127.0.0.1:8787/"
+// const default_url = "https://k1.hawk.so/"
 
 @internal
 pub fn new() -> Transport {

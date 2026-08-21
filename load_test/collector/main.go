@@ -12,6 +12,21 @@ import (
 	"time"
 )
 
+// Same shape as github.com/codex-team/hawk.collector pkg/server/errorshandler.
+type CatcherMessage struct {
+	Token       string          `json:"token"`
+	Payload     json.RawMessage `json:"payload"`
+	CatcherType string          `json:"catcherType"`
+}
+
+type ResponseMessage struct {
+	Code    int    `json:"code"`
+	Error   bool   `json:"error"`
+	Message string `json:"message"`
+}
+
+const maxErrorCatcherMessageSize = 25000
+
 type stats struct {
 	Received     int64 `json:"received"`
 	Bytes        int64 `json:"bytes"`
@@ -20,12 +35,10 @@ type stats struct {
 	LatencyP99Us int64 `json:"latency_p99_us"`
 }
 
-type eventEnvelope struct {
-	Payload struct {
-		Context struct {
-			EnqueuedAtUs int64 `json:"enqueued_at_us"`
-		} `json:"context"`
-	} `json:"payload"`
+type payloadLatency struct {
+	Context struct {
+		EnqueuedAtUs int64 `json:"enqueued_at_us"`
+	} `json:"context"`
 }
 
 func percentile(sorted []int64, quantile float64) int64 {
@@ -38,6 +51,56 @@ func percentile(sorted []int64, quantile float64) int64 {
 		index = 0
 	}
 	return sorted[index]
+}
+
+func process(body []byte) ResponseMessage {
+	message := CatcherMessage{}
+	if err := json.Unmarshal(body, &message); err != nil {
+		return ResponseMessage{400, true, "Invalid JSON format"}
+	}
+	if len(message.Payload) == 0 {
+		return ResponseMessage{400, true, "Payload is empty"}
+	}
+	if message.Token == "" {
+		return ResponseMessage{400, true, "Token is empty"}
+	}
+	if message.CatcherType == "" {
+		return ResponseMessage{400, true, "CatcherType is empty"}
+	}
+	if !json.Valid(message.Payload) {
+		return ResponseMessage{400, true, "Invalid payload JSON format"}
+	}
+
+	return ResponseMessage{200, false, "OK"}
+}
+
+func sendAnswerHTTP(w http.ResponseWriter, r ResponseMessage) {
+	w.Header().Set("Content-Type", "text/json; charset=utf8")
+	if r.Message == "" {
+		return
+	}
+
+	w.WriteHeader(r.Code)
+	_ = json.NewEncoder(w).Encode(r)
+}
+
+func sampleLatency(body []byte) int64 {
+	var message CatcherMessage
+	if json.Unmarshal(body, &message) != nil {
+		return 0
+	}
+
+	var payload payloadLatency
+	if json.Unmarshal(message.Payload, &payload) != nil || payload.Context.EnqueuedAtUs <= 0 {
+		return 0
+	}
+
+	latency := time.Now().UnixMicro() - payload.Context.EnqueuedAtUs
+	if latency < 0 {
+		return 0
+	}
+
+	return latency
 }
 
 func main() {
@@ -56,7 +119,9 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/stats", func(w http.ResponseWriter, _ *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/stats", func(w http.ResponseWriter, _ *http.Request) {
 		latencyMu.RLock()
 		samples := append([]int64(nil), latencies...)
 		latencyMu.RUnlock()
@@ -72,7 +137,7 @@ func main() {
 		})
 	})
 
-	http.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.NotFound(w, r)
 			return
@@ -87,31 +152,42 @@ func main() {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
 
-		body, _ := io.ReadAll(r.Body)
+		if r.ContentLength > maxErrorCatcherMessageSize {
+			sendAnswerHTTP(w, ResponseMessage{400, true, "Request is too large"})
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, maxErrorCatcherMessageSize)
+		body, err := io.ReadAll(r.Body)
 		_ = r.Body.Close()
-		var envelope eventEnvelope
-		if json.Unmarshal(body, &envelope) == nil && envelope.Payload.Context.EnqueuedAtUs > 0 {
-			latency := time.Now().UnixMicro() - envelope.Payload.Context.EnqueuedAtUs
-			if latency >= 0 {
+		if err != nil {
+			sendAnswerHTTP(w, ResponseMessage{400, true, "Request is too large"})
+			return
+		}
+
+		response := process(body)
+		if response.Code == 200 {
+			if latency := sampleLatency(body); latency > 0 {
 				latencyMu.Lock()
 				latencies = append(latencies, latency)
 				latencyMu.Unlock()
 			}
+
+			atomic.AddInt64(&received, 1)
+			atomic.AddInt64(&window, 1)
+			atomic.AddInt64(&nbytes, int64(len(body)))
 		}
 
-		atomic.AddInt64(&received, 1)
-		atomic.AddInt64(&window, 1)
-		atomic.AddInt64(&nbytes, int64(len(body)))
-		w.WriteHeader(http.StatusOK)
+		sendAnswerHTTP(w, response)
 	})
 
 	addr := "127.0.0.1:8787"
 	log.Printf("collector listening on http://%s/", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
